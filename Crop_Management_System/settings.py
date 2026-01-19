@@ -83,6 +83,7 @@ AUTH_USER_MODEL = "accounts.User"
 DATABASES = {
     'default': dj_database_url.parse(config("DATABASE_URL")),
 }
+
 REST_FRAMEWORK={
     'NON_FIELD_ERRORS_KEY':'error',
         'DEFAULT_AUTHENTICATION_CLASSES': (
