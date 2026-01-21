@@ -10,7 +10,7 @@ from django.conf import settings
 from django.urls import reverse
 from .utils import send_normal_email
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-
+from django.utils.timezone import now
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
@@ -83,23 +83,26 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         fields = ['email']
 
     def validate(self, attrs):
-        
         email = attrs.get('email')
         if User.objects.filter(email=email).exists():
-            user= User.objects.get(email=email)
-            uidb64=urlsafe_base64_encode(smart_bytes(user.id))
+            user = User.objects.get(email=email)
+            uidb64 = urlsafe_base64_encode(smart_bytes(user.id))
             token = PasswordResetTokenGenerator().make_token(user)
-            request=self.context.get('request')
-            current_site=settings.PASS_RESET_DOMAIN
-            relative_link =f"/password-reset-confirm/{uidb64}/{token}/"
-            abslink=f"{current_site}{relative_link}"
-            email_body=f"Hi {user.first_name} use the link below to reset your password {abslink}"
-            data={
-                'email_body':email_body, 
-                'email_subject':"Reset your Password", 
-                'to_email':user.email,
-                'from_email':settings.EMAIL_HOST_USER
-                }
+            current_site = settings.PASS_RESET_DOMAIN
+            relative_link = f"/resetpassword/{uidb64}/{token}/"
+            abslink = f"{current_site}{relative_link}"
+
+            context = {
+                'user': user,
+                'reset_link': abslink
+            }
+            data = {
+                'email_body': 'password_reset_email.html',  # Path to the email template
+                'email_subject': "Reset your Password",
+                'to_email': user.email,
+                'from_email': settings.EMAIL_HOST_USER,
+                'context': context  # Pass context to email
+            }
             send_normal_email(data)
 
         return super().validate(attrs)

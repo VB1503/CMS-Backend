@@ -1,5 +1,7 @@
 
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 import random
 import requests
 from django.conf import settings
@@ -51,19 +53,23 @@ def resend_otp(phone_number,user,request):
 
 
 def send_normal_email(data):
-
-    message = data.get('email_body', '')
+    email_body = data.get('email_body', '')
     subject = data.get('email_subject', '')
     receiver = data.get('to_email', '')
     from_email = data.get('from_email', '')
-    # Now you can use these variables as needed
+    context = data.get('context', {})  # Add context to data dictionary
 
-    email = EmailMessage(
-        subject=subject,
-        body=message,
-        from_email=from_email,
-        to=[receiver],
-    )
-    email.send()
+    # Render the message template with the provided context
+    message = render_to_string(email_body, context)
 
+    # Create the email
+    msg = EmailMultiAlternatives(subject, '', from_email, [receiver])
+    msg.attach_alternative(message, 'text/html')
+
+    # Send the email
+    try:
+        msg.send()
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 

@@ -67,7 +67,7 @@ def get_prediction(request,N,P,K,temperature,humidity,ph,rainfall):
 
     return prediction[0]
 
-def crop_yield_pred(year, season, month, crop, area, avg_temp, avg_rainfall):
+def crop_yield_pred(year, season, crop, area, avg_temp, avg_rainfall):
     model_path = os.path.join(settings.BASE_DIR, 'CRS', 'models', 'cyp_model.pkl')
     with open(model_path, 'rb') as f:
         CYP = pickle.load(f)
@@ -75,14 +75,21 @@ def crop_yield_pred(year, season, month, crop, area, avg_temp, avg_rainfall):
     data = np.array([[area, crop, year, avg_rainfall, season, avg_temp]])
 
     # Make prediction using the loaded model
-    production = int(CYP.predict(data)[0]) / int(month)
-    yield_value = production / int(area)
+    predicted_yield = float(CYP.predict(data)[0])   # hg per hectare
+    # Calculate total production using area (hectare)
+    production = predicted_yield * float(area)      # total production in hg
+
+    # Optional: convert hectogram (hg) to kilogram (kg)
+    production_kg = production * 0.1
 
     # Round the values to two decimal places
-    production_rounded = round(production, 2)
-    yield_rounded = round(yield_value, 2)
+    production_rounded = round(production_kg, 2)
+    yield_rounded = round(predicted_yield, 2)
 
-    return {"production": production_rounded, "yield": yield_rounded}
+    return {
+        "production": production_rounded,  # in kg
+        "yield": yield_rounded              # in hg/ha
+}
 
 
 
@@ -94,20 +101,37 @@ def get_fertilizer_recommendation(request, temperature, humidity, moisture, soil
     
     data = np.array([[temperature, humidity, moisture, soil_type, crop_type, nitrogen, potassium, phosphorous]])
     prediction = rf_pipeline.predict(data)
+    print(prediction)
     recommendation = prediction[0]
 
     # Fertilizer labels
-    fertilizer_labels = ['Urea', 'DAP', '14-35-14', '28-28', '17-17-17', '20-20', '10-26-26']
+    fertilizer_labels = [
+            '10-26-26',   # 0
+            '14-35-14',   # 1
+            '17-17-17',   # 2
+            '20-20',      # 3
+            '28-28',      # 4
+            'DAP',        # 5
+            'Urea'        # 6
+        ]
+
 
     fertilizer = {
-    0:"Urea is a nitrogen-rich fertilizer, containing approximately 46% nitrogen. It is one of the most widely used fertilizers due to its high nitrogen content and affordability.Urea is suitable for a variety of crops including grains, vegetables, fruits, and grasslands. It is commonly used as a nitrogen source for plants to promote vegetative growth.Apply urea evenly to the soil around the base of plants. Avoid direct contact with plant foliage to prevent leaf burn. Incorporate urea into the soil through watering or mechanical means for better absorption. The recommended dosage varies depending on the crop and soil conditions.",
-    1:"Diammonium phosphate (DAP) is a widely used phosphorus fertilizer containing high levels of phosphorus (typically 18-46% P2O5) and nitrogen in the form of ammonia. It is highly soluble in water, making it readily available to plants.DAP is suitable for a variety of crops, especially those with high phosphorus requirements, such as fruits, vegetables, and grains. It is commonly used during the early stages of plant growth to promote root development and overall plant vigor.Apply DAP evenly to the soil before planting or as a side dressing during the growing season. Mix it thoroughly with the soil to ensure proper distribution of phosphorus. Avoid direct contact with plant roots to prevent root burn. Follow recommended application rates based on soil test results or crop requirements.",
-    2:"The 14-35-14 fertilizer is a phosphorus-rich fertilizer with a balanced ratio of nitrogen (N), phosphorus (P), and potassium (K). It typically contains 14% nitrogen, 35% phosphorus pentoxide (P2O5), and 14% potassium oxide (K2O). This formulation provides a high concentration of phosphorus, which is essential for root development, flowering, and fruit formation.14-35-14 fertilizer is suitable for crops with high phosphorus requirements, such as flowering plants, fruits, and vegetables. It is particularly beneficial during the early stages of plant growth and flowering to promote vigorous root growth and enhance flower and fruit production.Apply 14-35-14 fertilizer evenly to the soil before planting or as a side dressing during the growing season. Incorporate it into the soil to ensure proper root uptake of nutrients. Follow recommended application rates based on soil test results or crop requirements. Avoid overapplication to prevent nutrient imbalances and potential harm to plants.",
-    3:"The 28-28 fertilizer is a balanced fertilizer with equal parts of nitrogen (N), phosphorus (P), and potassium (K). It typically contains 28% nitrogen, 28% phosphorus pentoxide (P2O5), and 28% potassium oxide (K2O). This formulation provides essential nutrients for overall plant growth and development.28-28 fertilizer is suitable for a wide range of crops, including vegetables, fruits, flowers, and ornamental plants. It is particularly beneficial during the growing season to promote healthy foliage, root development, and flowering.Apply 28-28 fertilizer evenly to the soil before planting or as a top dressing during the growing season. Incorporate it into the soil to ensure proper nutrient uptake by plant roots. Follow recommended application rates based on soil test results or crop requirements. Avoid overapplication to prevent nutrient imbalances and potential harm to plants",
-    4:"The 17-17-17 fertilizer is a balanced fertilizer with equal proportions of nitrogen (N), phosphorus (P), and potassium (K). It typically contains 17% nitrogen, 17% phosphorus pentoxide (P2O5), and 17% potassium oxide (K2O). This balanced formulation provides essential nutrients for overall plant growth, flowering, and fruiting.17-17-17 fertilizer is suitable for a wide range of crops, including vegetables, fruits, grains, and ornamental plants. It is particularly beneficial during the growing season to promote healthy foliage, root development, and flowering.Apply 17-17-17 fertilizer evenly to the soil before planting or as a top dressing during the growing season. Incorporate it into the soil to ensure proper nutrient distribution and uptake by plant roots. Follow recommended application rates based on soil test results or crop requirements. Avoid overapplication to prevent nutrient imbalances and potential harm to plants.",
-    5:"The 20-20 fertilizer is a balanced fertilizer with equal proportions of nitrogen (N), phosphorus (P), and potassium (K). It typically contains 20% nitrogen, 20% phosphorus pentoxide (P2O5), and 20% potassium oxide (K2O). This balanced formulation provides essential nutrients for overall plant growth, flowering, and fruiting.20-20 fertilizer is suitable for a wide range of crops, including vegetables, fruits, grains, and ornamental plants. It is particularly beneficial during the growing season to promote healthy foliage, root development, and flowering.xApply 20-20 fertilizer evenly to the soil before planting or as a top dressing during the growing season. Incorporate it into the soil to ensure proper nutrient distribution and uptake by plant roots. Follow recommended application rates based on soil test results or crop requirements. Avoid overapplication to prevent nutrient imbalances and potential harm to plants.",
-    6:"The 10-26-26 fertilizer is a phosphorus and potassium-rich fertilizer with a lower proportion of nitrogen. It typically contains 10% nitrogen, 26% phosphorus pentoxide (P2O5), and 26% potassium oxide (K2O). This formulation is ideal for promoting root development, flowering, and fruiting in plants.10-26-26 fertilizer is suitable for crops with high phosphorus and potassium requirements, such as flowering plants, fruit-bearing trees, and root vegetables. It is particularly beneficial during the flowering and fruiting stages to enhance flower and fruit production.Apply 10-26-26 fertilizer evenly to the soil before planting or during the flowering and fruiting stages of growth. Incorporate it into the soil to ensure proper root uptake of nutrients. Follow recommended application rates based on soil test results or crop requirements. Avoid overapplication to prevent nutrient imbalances and potential harm to plants."
+    0: "The 10-26-26 fertilizer is a phosphorus and potassium-rich fertilizer with a lower proportion of nitrogen. It typically contains 10% nitrogen, 26% phosphorus pentoxide (P2O5), and 26% potassium oxide (K2O). This formulation is ideal for promoting root development, flowering, and fruiting in plants. It is suitable for flowering plants, fruit-bearing trees, and root vegetables. Apply evenly to the soil before planting or during flowering and fruiting stages. Incorporate into the soil and follow recommended application rates.",
+
+    1: "The 14-35-14 fertilizer is a phosphorus-rich fertilizer containing 14% nitrogen, 35% phosphorus pentoxide (P2O5), and 14% potassium oxide (K2O). It is ideal for crops requiring strong root development and improved flowering and fruit formation. Apply before planting or as a side dressing and mix well with soil.",
+
+    2: "The 17-17-17 fertilizer is a balanced fertilizer containing equal proportions of nitrogen, phosphorus, and potassium. It supports overall plant growth, flowering, and fruiting. Suitable for vegetables, fruits, grains, and ornamental plants. Apply evenly before planting or as a top dressing.",
+
+    3: "The 20-20 fertilizer provides balanced nutrition with 20% nitrogen, 20% phosphorus, and 20% potassium. It promotes healthy foliage, root growth, and flowering. Suitable for a wide range of crops. Apply evenly and incorporate into the soil.",
+
+    4: "The 28-28 fertilizer contains equal amounts of nitrogen, phosphorus, and potassium at higher concentrations. It is useful during the active growing season to boost plant growth, flowering, and root development. Avoid overapplication.",
+
+    5: "Diammonium phosphate (DAP) contains high phosphorus and moderate nitrogen (18-46-0). It promotes early root growth and plant vigor. Commonly applied before planting or as a basal fertilizer. Avoid direct root contact.",
+
+    6: "Urea is a nitrogen-rich fertilizer containing about 46% nitrogen. It promotes vegetative growth and is widely used for crops such as cereals, vegetables, and grasses. Apply evenly and irrigate after application to prevent nitrogen loss."
 }
+
     recommended_fertilizer = {"fertilizer":fertilizer[recommendation],"name":fertilizer_labels[recommendation]}
 
     # Scrape fertilizer standards and content from a reliable source

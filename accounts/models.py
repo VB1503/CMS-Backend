@@ -51,7 +51,7 @@ class Landmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     landId=models.BigAutoField(primary_key=True, editable=False)
     coordinates = models.JSONField(default=list)
-    
+    location_details = models.JSONField(default=list)
 class OneTimePassword(models.Model):
     user=models.OneToOneField(User, on_delete=models.CASCADE)
     otp=models.CharField(max_length=6)
